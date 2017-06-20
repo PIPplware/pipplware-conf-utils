@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=RetroPie Configuration Tools
+Terminal=true
+Name=RetroPie Configuration
+Exec=bash /etc/emulationstation/pipplware-menus/system/RetroPie\\ Configuration.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/RetroPie Configuration.png
+Categories=Pipplware;

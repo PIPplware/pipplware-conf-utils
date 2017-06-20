@@ -1,0 +1,8 @@
+Package: pipplware-conf-utils
+Version: 6.0-2
+Architecture: armhf
+Maintainer: Diogo Santos <diogomsantos@hotmail.com>
+Section: pipplware
+Priority: extra
+Homepage: http://pipplware.pplware.pt/
+Description: Pipplware Configurations and utilities

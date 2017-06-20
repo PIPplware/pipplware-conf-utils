@@ -1,0 +1,163 @@
+#!/bin/bash
+
+UPDATE_SELF=${UPDATE_SELF:-1}
+
+###Functions Start###
+enable_joystick() {
+    local params=("$@")
+    if [[ "${#params[@]}" -eq 0 ]]; then
+        params=(kcub1 kcuf1 kcuu1 kcud1 0x0a 0x20)
+    fi
+    # get the first joystick device (if not already set)
+    [[ -c "$__joy2key_dev" ]] || __joy2key_dev="/dev/input/jsX"
+    # if no joystick device, or joy2key is already running exit
+    [[ -z "$__joy2key_dev" ]] || pgrep -f joy2key.py >/dev/null && return 1
+    # if joy2key.py is installed run it with cursor keys for axis, and enter + space for buttons 0 and 1
+    if "/home/pi/RetroPie-Setup/scriptmodules/supplementary/runcommand/joy2key.py" "$__joy2key_dev" "${params[@]}" & 2>/dev/null; then
+        __joy2key_pid=$!
+        return 0
+    fi
+    return 1
+}
+
+update_self() {
+  echo " *** Performing self-update"
+  apt-get update &&
+  apt-get -o Dpkg::Options::="--force-confnew" install pipplware-conf-utils -y &&
+  echo "Sleeping 5 seconds before reloading update-system" &&
+  sleep 5 &&
+  exec env UPDATE_SELF=0 /bin/bash update-system
+}
+
+
+kill_joystick() {
+if [[ -n $__joy2key_pid ]]; then
+        kill -INT $__joy2key_pid 2>/dev/null
+fi
+}
+
+internet_check() {
+wget -q --spider http://google.com
+if [ $? -eq 0 ]; then
+    true
+else
+    dialog --title "Update not possible!" --msgbox 'No Internet connection available!\n\nPlease connect to the internet and try again.' 7 70 >/dev/tty
+    kill_joystick
+    clear
+    exit
+fi
+}
+
+freespace_check() {
+freespace=$(df -P / | tail -n1 | awk '{print $4}')
+freespace_MB=$((freespace/1024))
+if [ "$freespace_MB" -gt 500 ]; then
+    true
+else
+    dialog --title "Update not possible!" --msgbox 'Only '$freespace_MB' MB left on the device!\n\nAt least 500 MB of free space is recommended for the update to be sucessfull.\nPlease free some space on the device and try again.' 9 70 >/dev/tty
+    kill_joystick
+    clear
+    exit
+fi
+}
+
+function error_check {
+    "$@"
+    local status=$?
+    if [ $status -ne 0 ]; then
+        dialog --clear --title "Update not possible" --msgbox 'There was an error during the update!\n\nPlease check the log, follow the instructions, and try again. Rebooting and updating again may fix the problem automatically.' 9 70 >/dev/tty
+	dialog --clear --title "LOG: /etc/pipplware/update.log" --tailbox /etc/pipplware/update.log 16 90 >/dev/tty
+	kill_joystick
+	clear
+	exit
+    fi
+    return $status
+}
+###Functions End###
+#
+###Update System###
+#!/bin/bash
+
+if [[ ${UPDATE_SELF} -ne 0 ]]; then
+	update_self
+fi
+
+enable_joystick
+version=`tail -1 /etc/pipplware/versions`
+rm /etc/pipplware/update.log > /dev/null 2>&1
+touch /etc/pipplware/update.log
+internet_check
+freespace_check
+dialog --title 'PiPplware Updater | Current version: '$version'' --yesno "\nPiPplware operating system will be updated now.\n\nThis process can take several minutes depending on the Raspberry Pi version, time since last update, internet connection, etc.\nPlease be patient!\n\nIf Kodi is running it will be closed now!\n\nDo you want to continue?" 14 70 >/dev/tty
+response=$?
+case $response in
+   0) true;;
+   1) kill_joystick; clear; exit
+esac
+counter=0
+step="Checking and correcting dependencies if necessary..."
+(
+# set infinite while loop
+while :
+do
+echo "$counter"
+case $counter in
+  10)
+     cd /etc/pipplware
+     if ps ax | grep -v grep | grep kodi.bin > /dev/null; then
+        killall -9 kodi.bin >> /etc/pipplware/update.log 2>&1
+     fi
+     apt-get -f install -y >> /etc/pipplware/update.log 2>&1
+     dpkg --configure -a >> /etc/pipplware/update.log 2>&1
+     step="Syncing remote and local packages databases..."
+     ((counter+=1))
+     ;;
+  40)
+     error_check apt-get -o Dpkg::Options::="--force-confnew" dist-upgrade -y >> /etc/pipplware/update.log 2>&1
+     step="Updating packages..."
+     ((counter+=1))
+     ;;
+  50)
+     wget http://pipplware.pplware.pt/pipplware/dists/jessie/main/misc/update.sh -O /etc/pipplware/update.sh >> /etc/pipplware/update.log 2>&1
+     step="Preparing to update additional packages..."
+     ((counter+=1))
+     ;;
+  55)
+     chmod +x /etc/pipplware/update.sh >> /etc/pipplware/update.log 2>&1
+     step="Upgrading additional packages..."
+     ((counter+=1))
+     ;;
+  60)
+     sh /etc/pipplware/update.sh >> /etc/pipplware/update.log 2>&1
+     ((counter+=1))
+     step="Finalizing update..."
+     ;;
+  95)
+     rm /etc/pipplware/update.sh >> /etc/pipplware/update.log 2>&1
+     ((counter+=1))
+     ;;
+  100)
+     cd ~/
+     version=`tail -1 /etc/pipplware/versions`
+     dialog --clear --title "System updated!" --msgbox 'Congratulations! Your system is now up to date!\n\nCurrent version: Pipplware '$version'\n\nIf Pipplwares version was updated, please reboot the system now.' 9 70 >/dev/tty
+     exit
+     ;;
+   *)
+     ((counter+=1))
+     sleep 0.1
+     ;;
+esac
+
+cat <<EOF
+XXX
+$counter
+$step
+XXX
+EOF
+done
+) |
+dialog --title "LOG: /etc/pipplware/update.log" --begin 1 1 --tailboxbg /etc/pipplware/update.log 8 90 --and-widget --title "Updating system..." --gauge "$step" 7 70 0
+clear
+kill_joystick
+exit
+###End of Update System###

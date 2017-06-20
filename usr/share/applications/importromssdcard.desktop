@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Import all your ROMs from a connected USB device to your SD Card
+Terminal=true
+Name=Import ROMs to SD Card
+Exec=bash /etc/emulationstation/pipplware-menus/system/Import\\ ROMs\\ to\\ SD\\ Card.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Import ROMs to SD Card.png
+Categories=Pipplware;

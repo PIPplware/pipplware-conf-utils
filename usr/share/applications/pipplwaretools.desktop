@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=PiPplware Tools
+Terminal=true
+Name=PiPplware Tools
+Exec=bash /etc/emulationstation/pipplware-menus/system/PiPplware\\ Tools.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/PiPplware Tools.png
+Categories=Pipplware;

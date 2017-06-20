@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Backup all your Pipplware settings/definitions
+Terminal=true
+Name=Backup Settings
+Exec=bash /etc/emulationstation/pipplware-menus/system/Backup\\ Settings.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Backup Settings.png
+Categories=Pipplware;

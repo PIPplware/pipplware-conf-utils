@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Export all your ROMs to a connected USB device
+Terminal=true
+Name=Export ROMs to USB
+Exec=bash /etc/emulationstation/pipplware-menus/system/Export\\ ROMs\\ to\\ USB.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Export ROMs to USB.png
+Categories=Pipplware;

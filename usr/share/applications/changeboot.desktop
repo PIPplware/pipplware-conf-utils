@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Change system default boot behaviour
+Terminal=true
+Name=Change Boot
+Exec=sudo bootmenu
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Change Boot.png
+Categories=Pipplware;

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Enable / Disable system services
+Terminal=true
+Name=Enable / Disable Services
+Exec=bash /etc/emulationstation/pipplware-menus/system/Enable\\ -\\ Disable\\ Services.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Enable - Disable Services.png
+Categories=Pipplware;

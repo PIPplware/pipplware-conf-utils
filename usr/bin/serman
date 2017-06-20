@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+
+import argparse
+import shlex
+import subprocess
+import sys
+
+DEFAULT_HEIGHT = 20
+DEFAULT_WIDTH = 60
+NON_LIST_HEIGHT = 7
+DEFAULT_LIST_HEIGHT = DEFAULT_HEIGHT - NON_LIST_HEIGHT
+
+CHECKLIST_CMD = [
+  '/usr/bin/dialog',
+  '--stdout',
+  '--separate-output',
+  '--checklist',
+]
+
+def action(systemctl, services, action='enable', lines=0, args=None, dry_run=False):
+  cmd = [systemctl, '--lines', str(lines)]
+  if args:
+    cmd += args
+  cmd += [action,] + sorted(services)
+  if dry_run:
+    print(' '.join(shlex.quote(x) for x in cmd))
+  else:
+    try:
+      subprocess.check_call(cmd)
+    except subprocess.CalledProcessError:
+      sys.exit(1)
+
+
+
+def parse_args(args=None):
+  parser = argparse.ArgumentParser(
+    description='Generate dialogues for systemd service management.'
+  )
+  parser.add_argument(
+    '--systemctl', default='/usr/bin/systemctl', metavar='<path>',
+    help='Path to the systemctl binary. [default: %(default)s]'
+  )
+  parser.add_argument(
+    '-a', '--args', nargs=argparse.REMAINDER, default=[],
+    help='Pass remaining arguments directly to systemctl (e.g. --user).'
+  )
+  parser.add_argument(
+    '--dry-run', action='store_true',
+    help='Print systemctl command instead of running them.'
+  )
+
+  group = parser.add_argument_group(title='Actions', description=None)
+  group.add_argument(
+    '-e', '--enable', action='store_true',
+    help='Enable and disable services.'
+  )
+  group.add_argument(
+    '-s', '--start', action='store_true',
+    help='Start and stop services.'
+  )
+  group.add_argument(
+    '-r', '--restart', action='store_true',
+    help='Start or restart services.'
+  )
+  group.add_argument(
+    '-o', '--other', action='append', metavar='<unit command>', default=[],
+    help='Run another unit command on each selected service.'
+  )
+
+
+  group = parser.add_argument_group(title='Geometry', description=None)
+  group.add_argument(
+    '--height', type=int,
+    help='Dialogue height. Default: Adjusted to fit list height.'
+  )
+  group.add_argument(
+    '--width', type=int, default=DEFAULT_WIDTH,
+    help='Dialogue width. Default: %(default)s.'
+  )
+  group.add_argument(
+    '--list-height', type=int, default=DEFAULT_LIST_HEIGHT,
+    help='Dialogue list-height. Default: %(default)s.'
+  )
+
+  return parser.parse_args(args)
+
+
+
+def main(args=None):
+  args = parse_args(args)
+
+  if not (args.enable or args.start or args.restart or args.other):
+    sys.stderr.write('error: no action specified\n')
+    sys.exit(1)
+
+  if args.height:
+    height = str(args.height)
+  else:
+    height = str(args.list_height + NON_LIST_HEIGHT)
+  width = str(args.width)
+  list_height = str(args.list_height)
+
+  cmd = [
+    args.systemctl,
+    '--no-legend',
+    'list-unit-files'
+  ] + args.args
+
+  try:
+    output = subprocess.check_output(cmd)
+  except subprocess.CalledProcessError:
+    sys.stderr.write('error: failed to load systemd data\n')
+    sys.exit(1)
+
+  services = dict()
+  for service in output.decode().strip().split('\n'):
+    service = service.strip()
+    if not service:
+      continue
+    name, status = service.split(None, 1)
+    if status not in ('enabled', 'disabled'):
+      continue
+    services[name] = status
+
+
+
+  for op in args.other:
+    dialog_cmd = CHECKLIST_CMD + [
+      'Select services for the unit command "%s".' % op,
+      height,
+      width,
+      list_height,
+    ]
+    for service, status in sorted(services.items(), key=lambda x: x[0]):
+      dialog_cmd.extend((service, '', 'off'))
+    try:
+      checked = subprocess.check_output(dialog_cmd)
+      checked = set(checked.decode().strip().split())
+      if checked:
+        action(args.systemctl, checked, action=op, args=args.args, dry_run=args.dry_run)
+      if checked and op != 'status' and not args.dry_run:
+        action(args.systemctl, checked, action='status', args=args.args)
+
+    # Raised if the user selects "cancel" as well.
+    except subprocess.CalledProcessError:
+      pass
+
+
+
+  if args.enable:
+    dialog_cmd = CHECKLIST_CMD + [
+      'Select services to enable.',
+      height,
+      width,
+      list_height,
+    ]
+    for service, status in sorted(services.items(), key=lambda x: x[0]):
+      if status == 'enabled':
+        stat = 'on'
+      else:
+        stat = 'off'
+      dialog_cmd.extend((service, '', stat))
+
+    try:
+      checked = subprocess.check_output(dialog_cmd)
+      checked = set(checked.decode().strip().split())
+
+      enabled = set((x for x,y in services.items() if y == 'enabled'))
+      newly_enabled = checked - enabled
+      newly_disabled = enabled - checked
+
+      if newly_enabled:
+        action(args.systemctl, newly_enabled, action='enable', args=args.args, dry_run=args.dry_run)
+
+      if newly_disabled:
+        action(args.systemctl, newly_disabled, action='disable', args=args.args, dry_run=args.dry_run)
+
+      enabled = checked
+
+    # Raised if the user selects "cancel" as well.
+    except subprocess.CalledProcessError:
+      pass
+
+
+
+  ops = list()
+  if args.start:
+    ops.append('start')
+  if args.restart:
+    ops.append('restart')
+
+  for op in ops:
+    cmd = [
+      args.systemctl,
+      '--no-legend',
+      '--all',
+      '--full'
+    ] + args.args
+
+    try:
+      output = subprocess.check_output(cmd)
+    except subprocess.CalledProcessError:
+      sys.stderr.write('error: failed to load systemd data\n')
+      sys.exit(1)
+
+    started = set()
+    for line in output.decode().strip().split('\n'):
+      name, loaded, active, rest = line.split(None, 3)
+      if loaded == 'loaded' and active == 'active' and name in services:
+        started.add(name)
+
+    checklist = list()
+    for service, status in sorted(services.items(), key=lambda x: x[0]):
+      if op == 'restart':
+        if service in started:
+          status = 'loaded & active'
+        else:
+          status = ''
+        stat = 'off'
+      elif op == 'start':
+        if service in started:
+          stat = 'on'
+        else:
+          stat = 'off'
+      checklist.extend((service, status, stat))
+
+    if op == 'restart':
+      text = 'Select services to (re)start.'
+    elif op == 'start':
+      text = 'Select services to run.'
+
+    dialog_cmd = CHECKLIST_CMD + [
+      text,
+      height,
+      width,
+      list_height,
+    ] + checklist
+
+    try:
+      checked = subprocess.check_output(dialog_cmd)
+    except subprocess.CalledProcessError:
+      sys.exit(0)
+
+    checked = set(checked.decode().strip().split())
+
+    if op == 'restart':
+      newly_started = checked - started
+      restarted = checked & started
+
+      if newly_started:
+        action(args.systemctl, newly_started, action='start', args=args.args, dry_run=args.dry_run)
+
+      if restarted:
+        action(args.systemctl, restarted, action='restart', args=args.args, dry_run=args.dry_run)
+
+      changed = checked
+
+    elif op == 'start':
+      newly_started = checked - started
+      newly_stopped = started - checked
+
+      if newly_started:
+        action(args.systemctl, newly_started, action='start', args=args.args, dry_run=args.dry_run)
+
+      if newly_stopped:
+        action(args.systemctl, newly_stopped, action='stop', args=args.args, dry_run=args.dry_run)
+
+      changed = checked ^ started
+
+    if changed and not args.dry_run:
+      action(args.systemctl, changed, action='status', args=args.args)
+
+
+
+
+if __name__ == '__main__':
+  try:
+    main()
+  except (KeyboardInterrupt, BrokenPipeError):
+    pass

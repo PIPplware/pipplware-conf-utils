@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+cp /usr/share/gparted.desktop /usr/share/applications/gparted.desktop
+cp /usr/share/synaptic.desktop /usr/share/applications/synaptic.desktop
+cp /usr/share/.face /home/pi
+cp /usr/share/icon.png /home/pi
+cp -r /etc/gtk-3.0 /home/pi/.config/
+chown pi:pi /home/pi/.face
+chown pi:pi /home/pi/icon.png
+chown -R pi:pi /home/pi/.config/gtk-3.0
+cp /etc/xdg/openbox/pipplware/* /etc/xdg/openbox
+cp /etc/xdg/menus/pipplware.menu /etc/xdg/menus/xfce-applications.menu

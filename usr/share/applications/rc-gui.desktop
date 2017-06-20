@@ -1,0 +1,9 @@
+[Desktop Entry]
+Comment=Raspberry Configuration Tool
+Terminal=false
+Name=Raspi-Config
+Categories=System;
+Exec=rc_gui
+Type=Application
+Icon=/usr/share/raspberrypi-artwork/raspitr.png
+

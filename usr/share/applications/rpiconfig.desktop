@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Raspberry Pi Configuration tools
+Terminal=true
+Name=Raspberry Pi Configuration
+Exec=bash /etc/emulationstation/pipplware-menus/system/Raspberry\\ Pi\\ Configuration.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Raspberry Pi Configuration.png
+Categories=Pipplware;

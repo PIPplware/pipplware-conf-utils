@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Restore all your Pipplware settings and definitions
+Terminal=true
+Name=Restore Settings
+Exec=bash /etc/emulationstation/pipplware-menus/system/Restore\\ Settings.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Restore Settings.png
+Categories=Pipplware;

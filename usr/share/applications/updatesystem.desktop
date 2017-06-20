@@ -1,0 +1,8 @@
+[Desktop Entry]
+Comment=Update all Pipplware components except RetroPie
+Terminal=true
+Name=Update System
+Exec=bash /etc/emulationstation/pipplware-menus/system/Update\\ System.sh
+Type=Application
+Icon=/etc/emulationstation/pipplware-menus/system/Update System.png
+Categories=Pipplware;
